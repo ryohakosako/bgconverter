@@ -6,6 +6,8 @@ const previewCtx = preview.getContext("2d");
 const frame = $("frame");
 const stage = $("stage");
 const referenceBox = $("reference-box");
+const comparisonOverlay = $("comparison-overlay");
+const comparisonDivider = $("comparison-divider");
 const warmBackground = demoBackground(false);
 const coolBackground = demoBackground(true);
 const sampleSubject = demoSubject();
@@ -26,7 +28,8 @@ let renderPending = false;
 let automatic = color.neutral;
 let reference = null;
 let areaMode = false;
-let showingAfter = true;
+let comparisonMode = "split";
+let comparisonPosition = 50;
 let position = { x: .46, y: .71 };
 let gesture = null;
 const loadVersion = { background: 0, subject: 0 };
@@ -72,10 +75,12 @@ function settings() {
   const hex = $("shadow").value;
   const tint = [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));
   const tintLight = color.luma(...tint);
+  const contrast = +$("contrast").value / 100;
   return {
     temperature: automatic.temperature + +$("temperature").value * .34,
     brightness: automatic.brightness + +$("brightness").value * .55,
-    contrast: automatic.contrast + +$("contrast").value * .27,
+    contrast: automatic.contrast,
+    manualContrast: contrast * (.045 + 1.155 * Math.abs(contrast) ** 3),
     highlights: +$("highlights").value * .32,
     shadows: +$("shadows").value * .32,
     saturation: automatic.saturation + +$("saturation").value * .008,
@@ -94,26 +99,48 @@ function placement() {
   };
 }
 
-function composite(ctx, image) {
-  const sx = ctx.canvas.width / background.width;
-  const sy = ctx.canvas.height / background.height;
+function composite(ctx, image, comparisonImage = null) {
+  const { width: canvasWidth, height: canvasHeight } = ctx.canvas;
+  const sx = canvasWidth / background.width;
+  const sy = canvasHeight / background.height;
   const { x, y, width, height } = placement();
-  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(background, 0, 0, ctx.canvas.width, ctx.canvas.height);
-  ctx.drawImage(image, x * sx, y * sy, width * sx, height * sy);
+  ctx.drawImage(background, 0, 0, canvasWidth, canvasHeight);
+  const drawSubject = subjectImage => ctx.drawImage(subjectImage, x * sx, y * sy, width * sx, height * sy);
+  if (!comparisonImage) {
+    drawSubject(image);
+    return;
+  }
+  const cut = Math.round(canvasWidth * comparisonPosition / 100);
+  function drawSide(subjectImage, left, sideWidth) {
+    if (!sideWidth) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(left, 0, sideWidth, canvasHeight);
+    ctx.clip();
+    drawSubject(subjectImage);
+    ctx.restore();
+  }
+  drawSide(image, 0, cut);
+  drawSide(comparisonImage, cut, canvasWidth - cut);
 }
 
 function render() {
   renderPending = false;
   const strength = +$("strength").value / 100;
-  if (showingAfter && strength && previewDirty) {
+  if (comparisonMode !== "before" && strength && previewDirty) {
     const ctx = previewSubject.getContext("2d");
     color.transform(currentSubjectPixels().data, previewPixels.data, settings(), strength);
     ctx.putImageData(previewPixels, 0, 0);
     previewDirty = false;
   }
-  composite(previewCtx, showingAfter && strength ? previewSubject : originalPreviewSubject);
+  const corrected = strength ? previewSubject : originalPreviewSubject;
+  if (comparisonMode === "split") {
+    composite(previewCtx, originalPreviewSubject, corrected);
+  } else {
+    composite(previewCtx, comparisonMode === "after" ? corrected : originalPreviewSubject);
+  }
 }
 
 function scheduleRender() {
@@ -151,10 +178,26 @@ function syncControls() {
   $("position-y").value = (position.y * 100).toFixed(1);
 }
 
-function compare(after) {
-  showingAfter = after;
-  $("before").setAttribute("aria-pressed", !after);
-  $("after").setAttribute("aria-pressed", after);
+function compare(mode) {
+  comparisonMode = mode;
+  for (const name of ["before", "split", "after"]) {
+    $(name).setAttribute("aria-pressed", name === mode);
+  }
+  comparisonOverlay.hidden = mode !== "split";
+  scheduleRender();
+}
+
+function showAdjustment() {
+  previewDirty = true;
+  compare(comparisonMode === "before" ? "after" : comparisonMode);
+}
+
+function setComparisonPosition(value) {
+  comparisonPosition = color.clamp(value, 0, 100);
+  comparisonOverlay.style.setProperty("--split", comparisonPosition + "%");
+  const percent = Math.round(comparisonPosition);
+  comparisonDivider.setAttribute("aria-valuenow", percent);
+  comparisonDivider.setAttribute("aria-valuetext", `補正前 ${percent}%、補正後 ${100 - percent}%`);
   scheduleRender();
 }
 
@@ -165,8 +208,7 @@ function resetColor() {
   $("shadow").value = "#808080";
   $("metrics").hidden = true;
   syncControls();
-  previewDirty = true;
-  compare(true);
+  showAdjustment();
 }
 
 function showBackground(image, name, sample) {
@@ -214,8 +256,7 @@ function autoCorrect() {
     return;
   }
   automatic = color.match(fg, bg);
-  previewDirty = true;
-  compare(true);
+  showAdjustment();
   const warmth = bg.warmth > 12 ? "暖色寄り" : bg.warmth < -12 ? "寒色寄り" : "中間色";
   $("metrics").textContent = "参照した背景　" + warmth + " / 明るさ " + Math.round(bg.mean / 255 * 100) + "%";
   $("metrics").hidden = false;
@@ -229,6 +270,36 @@ function eventPoint(event) {
     y: color.clamp((event.clientY - bounds.top) / bounds.height, 0, 1)
   };
 }
+
+comparisonDivider.addEventListener("pointerdown", event => {
+  if (event.button !== 0 || !event.isPrimary) return;
+  comparisonDivider.focus({ preventScroll: true });
+  comparisonDivider.setPointerCapture(event.pointerId);
+  setComparisonPosition(eventPoint(event).x * 100);
+});
+
+for (const name of ["pointermove", "pointerup"]) {
+  comparisonDivider.addEventListener(name, event => {
+    if (comparisonDivider.hasPointerCapture(event.pointerId)) {
+      setComparisonPosition(eventPoint(event).x * 100);
+    }
+  });
+}
+
+comparisonDivider.addEventListener("keydown", event => {
+  const step = event.shiftKey ? 10 : 1;
+  const positions = {
+    ArrowLeft: comparisonPosition - step,
+    ArrowDown: comparisonPosition - step,
+    ArrowRight: comparisonPosition + step,
+    ArrowUp: comparisonPosition + step,
+    Home: 0,
+    End: 100
+  };
+  if (!Object.hasOwn(positions, event.key)) return;
+  event.preventDefault();
+  setComparisonPosition(positions[event.key]);
+});
 
 preview.addEventListener("pointerdown", event => {
   if (gesture || event.button !== 0) return;
@@ -571,8 +642,7 @@ for (const name of [...controls, "shadow"]) {
     if (name === "scale") {
       scheduleRender();
     } else {
-      previewDirty = true;
-      compare(true);
+      showAdjustment();
     }
   });
 }
@@ -589,8 +659,7 @@ $("reset-position").onclick = () => {
   syncControls();
   scheduleRender();
 };
-$("before").onclick = () => compare(false);
-$("after").onclick = () => compare(true);
+for (const mode of ["before", "split", "after"]) $(mode).onclick = () => compare(mode);
 $("reference-all").onclick = () => { areaMode = false; $("metrics").hidden = true; syncReference(); };
 $("reference-area").onclick = () => { areaMode = true; $("metrics").hidden = true; syncReference(); };
 $("auto").onclick = autoCorrect;

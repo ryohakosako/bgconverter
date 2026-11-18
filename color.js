@@ -43,15 +43,16 @@ const color = (() => {
   }
 
   function transform(source, target, settings, strength) {
-    const { temperature, brightness, contrast, saturation, shadow, highlights = 0, shadows = 0 } = settings;
-    const contrastShift = Math.max(-.9, contrast * strength);
-    const lightShift = (brightness * strength) - contrastShift * 128;
+    const { temperature, brightness, contrast, saturation, shadow, highlights = 0, shadows = 0, manualContrast = 0 } = settings;
+    const contrastShift = clamp(contrast * strength, -.24, .24);
+    const manualShift = clamp(manualContrast * strength, -.9, 1.5);
+    const lightShift = brightness * strength;
     const highlightShift = highlights * strength;
     const shadowShift = shadows * strength;
     const tempShift = temperature * strength;
     const saturationShift = saturation * strength;
     const [shadowR, shadowG, shadowB] = shadow.map(value => value * strength);
-    if (!strength || !(temperature || brightness || contrast || saturation || highlightShift || shadowShift || shadowR || shadowG || shadowB)) {
+    if (!strength || !(temperature || brightness || contrastShift || manualShift || saturation || highlightShift || shadowShift || shadowR || shadowG || shadowB)) {
       target.set(source);
       return;
     }
@@ -67,11 +68,22 @@ const color = (() => {
       const tonalRoom = Math.min(1, y / 48, (255 - y) / 48);
       const warmth = tempShift * chromaProtection * tonalRoom;
       const bright = Math.max(0, (y - 105) / 150);
-      const tone = contrastShift * y + lightShift + highlightShift * bright * bright + shadowShift * dark;
+      const tone = lightShift + highlightShift * bright * bright + shadowShift * dark;
       const saturationAmount = Math.max(-1, saturationShift * chromaProtection);
-      target[i] = r + tone + (r - y) * saturationAmount + warmth + dark * shadowR;
-      target[i + 1] = g + tone + (g - y) * saturationAmount - warmth * .17 + dark * shadowG;
-      target[i + 2] = b + tone + (b - y) * saturationAmount - warmth + dark * shadowB;
+      const red = r + tone + (r - y) * saturationAmount + warmth + dark * shadowR;
+      const green = g + tone + (g - y) * saturationAmount - warmth * .17 + dark * shadowG;
+      const blue = b + tone + (b - y) * saturationAmount - warmth + dark * shadowB;
+      let contrastTone = 0;
+      if (contrastShift) {
+        const light = y / 255;
+        const tapered = contrastShift * (y - 127.5) * 4 * light * (1 - light);
+        // Keep the shift within the remaining RGB range without changing hue.
+        contrastTone = clamp(tapered, Math.min(0, -Math.min(red, green, blue)), Math.max(0, 255 - Math.max(red, green, blue)));
+      }
+      const manualTone = manualShift ? manualShift * (luma(red, green, blue) + contrastTone - 127.5) : 0;
+      target[i] = red + contrastTone + manualTone;
+      target[i + 1] = green + contrastTone + manualTone;
+      target[i + 2] = blue + contrastTone + manualTone;
     }
   }
 

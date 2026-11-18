@@ -17,8 +17,18 @@
   </header>
   <main class="layout">
     <section class="workspace" aria-labelledby="preview-title">
-      <div class="workspace-header"><div><h2 id="preview-title">合成プレビュー</h2><p id="dimensions"></p></div><div class="segmented" aria-label="補正の比較"><button id="before" aria-pressed="false">補正前</button><button id="after" aria-pressed="true">補正後</button></div></div>
-      <div class="stage" id="stage"><div id="frame"><canvas id="preview" aria-label="合成画像。ドラッグで被写体を移動できます"></canvas><div id="reference-box" hidden></div></div></div>
+      <div class="workspace-header"><div><h2 id="preview-title">合成プレビュー</h2><p id="dimensions"></p></div><div class="segmented" aria-label="補正の比較"><button id="before" aria-pressed="false">補正前</button><button id="split" aria-pressed="true">左右比較</button><button id="after" aria-pressed="false">補正後</button></div></div>
+      <div class="stage" id="stage">
+        <div id="frame">
+          <canvas id="preview" aria-label="合成画像。ドラッグで被写体を移動できます"></canvas>
+          <div id="reference-box" hidden></div>
+          <div id="comparison-overlay">
+            <div class="comparison-caption comparison-before" aria-hidden="true"><span>補正前</span></div>
+            <div class="comparison-caption comparison-after" aria-hidden="true"><span>補正後</span></div>
+            <div id="comparison-divider" role="slider" tabindex="0" aria-label="補正前と補正後の境界" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-valuetext="補正前 50%、補正後 50%"><span aria-hidden="true">‹ ›</span></div>
+          </div>
+        </div>
+      </div>
       <div class="workspace-footer"><span id="hint">ドラッグで被写体を移動</span><div class="samples"><span>サンプル</span><button id="sample-warm" aria-pressed="true"><i class="warm"></i>夕景</button><button id="sample-cool" aria-pressed="false"><i class="cool"></i>薄暮</button></div></div>
       <div id="video-controls" class="video-controls" hidden>
         <button id="play-video" type="button">再生</button>

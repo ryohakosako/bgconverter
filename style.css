@@ -69,6 +69,24 @@ canvas { display: block; width: 100%; height: auto; cursor: grab; touch-action: 
 canvas:active { cursor: grabbing; }
 canvas.selecting { cursor: crosshair; }
 #reference-box { position: absolute; pointer-events: none; border: 2px solid #bdffeb; background: #62e0bc20; box-shadow: 0 0 0 1px #081c18; }
+#comparison-overlay { --split: 50%; position: absolute; inset: 0; pointer-events: none; }
+.comparison-caption { position: absolute; top: 10px; bottom: 0; display: flex; align-items: start; overflow: hidden; }
+.comparison-caption span { margin: 0 10px; padding: 4px 7px; border-radius: 5px; color: #fff; background: #10171cdd; font-size: 11px; white-space: nowrap; }
+.comparison-before { left: 0; width: var(--split); }
+.comparison-after { left: var(--split); right: 0; justify-content: flex-end; }
+#comparison-divider {
+  position: absolute;
+  inset: 0 auto 0 var(--split);
+  display: grid;
+  place-items: center;
+  transform: translateX(-50%);
+  width: 34px;
+  cursor: ew-resize;
+  pointer-events: auto;
+  touch-action: none;
+}
+#comparison-divider::before { content: ""; position: absolute; inset: 0 auto; width: 2px; background: #f3fff9; box-shadow: 0 0 0 1px #18292395; }
+#comparison-divider span { position: relative; display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid #e9fff6; border-radius: 50%; background: #182923ef; color: #fff; font-size: 18px; user-select: none; }
 .workspace-footer { min-height: 51px; padding: 7px 16px; }
 .samples { gap: 6px; }
 .samples button { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: 11px; }
@@ -121,4 +139,7 @@ input[type="color"] { width: 35px; height: 25px; padding: 2px; border: 1px solid
   .workspace { position: static; }
   .stage { height: 50vh; }
   .topbar { flex-wrap: wrap; }
+}
+@media (max-width: 380px) {
+  .workspace-header { flex-wrap: wrap; }
 }
