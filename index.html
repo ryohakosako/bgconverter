@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12181c">
+  <title>BGコンバーター</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="color.js"></script>
+  <script defer src="demo.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo" aria-hidden="true">◈</span><div><h1>BGコンバーター</h1><p>背景に合わせる、被写体のカラー補正</p></div></div>
+    <div class="export"><button id="export-subject" title="合成用の背景を含めずに保存">被写体 PNG</button><button id="export-composite">合成 PNG</button><button id="export-video" class="primary" hidden>被写体 MP4 を保存 <span aria-hidden="true">↓</span></button></div>
+  </header>
+  <main class="layout">
+    <section class="workspace" aria-labelledby="preview-title">
+      <div class="workspace-header"><div><h2 id="preview-title">合成プレビュー</h2><p id="dimensions"></p></div><div class="segmented" aria-label="補正の比較"><button id="before" aria-pressed="false">補正前</button><button id="after" aria-pressed="true">補正後</button></div></div>
+      <div class="stage" id="stage"><div id="frame"><canvas id="preview" aria-label="合成画像。ドラッグで被写体を移動できます"></canvas><div id="reference-box" hidden></div></div></div>
+      <div class="workspace-footer"><span id="hint">ドラッグで被写体を移動</span><div class="samples"><span>サンプル</span><button id="sample-warm" aria-pressed="true"><i class="warm"></i>夕景</button><button id="sample-cool" aria-pressed="false"><i class="cool"></i>薄暮</button></div></div>
+      <div id="video-controls" class="video-controls" hidden>
+        <button id="play-video" type="button">再生</button>
+        <input id="video-time" type="range" min="0" max="0" step="any" value="0" aria-label="動画の再生位置">
+        <output id="time-display" for="video-time"></output>
+      </div>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <div id="video-export-progress" class="video-controls" hidden>
+        <progress id="export-progress" max="100" value="0" aria-label="MP4の書き出し進捗"></progress>
+        <output id="export-percent" for="export-progress">0%</output>
+        <button id="cancel-export" type="button">中止</button>
+      </div>
+    </section>
+    <aside class="panels" aria-label="編集ツール">
+      <section class="panel" aria-labelledby="assets-title">
+        <h2 id="assets-title">素材</h2>
+        <label class="asset"><span class="asset-icon" aria-hidden="true">▧</span><span><strong>背景画像</strong><small id="background-name"></small></span><span class="choose">選択</span><input id="background-file" type="file" accept="image/*" aria-label="背景画像を選択"></label>
+        <label class="asset"><span class="asset-icon" aria-hidden="true">◉</span><span><strong>被写体（PNG / MP4）</strong><small id="subject-name"></small></span><span class="choose">選択</span><input id="subject-file" type="file" accept="image/png,video/mp4,.png,.mp4" aria-label="被写体のPNGまたはMP4を選択"></label>
+      </section>
+      <section class="panel" aria-labelledby="position-title">
+        <div class="section-header"><h2 id="position-title">配置</h2><button id="reset-position" class="text-button">中央に戻す</button></div>
+        <label class="slider"><span>大きさ <output for="scale" id="scale-value"></output></span><input id="scale" type="range" min="1" max="200" value="58"></label>
+        <div class="coordinates"><label>横位置 <input id="position-x" type="number" min="-200" max="300" step="0.1" aria-label="横位置（%）"> %</label><label>縦位置 <input id="position-y" type="number" min="-200" max="300" step="0.1" aria-label="縦位置（%）"> %</label></div>
+      </section>
+      <section class="panel" aria-labelledby="auto-title">
+        <h2 id="auto-title">背景を参照</h2>
+        <div class="segmented full" aria-label="背景の参照範囲"><button id="reference-all" aria-pressed="true">背景全体</button><button id="reference-area" aria-pressed="false">範囲指定</button></div>
+        <button id="auto" class="primary full">✦　自動補正</button>
+        <p class="metrics" id="metrics" hidden></p>
+      </section>
+      <section class="panel adjustments" aria-labelledby="adjust-title">
+        <div class="section-header"><h2 id="adjust-title">補正を調整</h2><button id="reset-color" class="text-button">リセット</button></div>
+        <label class="slider strength"><span>補正の強さ <output for="strength" id="strength-value"></output></span><input id="strength" type="range" min="0" max="250" value="75"></label>
+        <label class="slider"><span>色温度 <output for="temperature" id="temperature-value"></output></span><input id="temperature" type="range" min="-150" max="150" value="0"></label>
+        <label class="slider"><span>明るさ <output for="brightness" id="brightness-value"></output></span><input id="brightness" type="range" min="-150" max="150" value="0"></label>
+        <label class="slider"><span>コントラスト <output for="contrast" id="contrast-value"></output></span><input id="contrast" type="range" min="-100" max="100" value="0"></label>
+        <label class="slider"><span>ハイライト <output for="highlights" id="highlights-value"></output></span><input id="highlights" type="range" min="-100" max="100" value="0"></label>
+        <label class="slider"><span>シャドウ <output for="shadows" id="shadows-value"></output></span><input id="shadows" type="range" min="-100" max="100" value="0"></label>
+        <label class="slider"><span>彩度 <output for="saturation" id="saturation-value"></output></span><input id="saturation" type="range" min="-150" max="150" value="0"></label>
+        <label class="shadow"><span>影の色</span><input id="shadow" type="color" value="#808080"></label>
+      </section>
+    </aside>
+  </main>
+</body>
+</html>
